@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>THE LAST SHIFT — PyroMania</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+:root{color-scheme:dark}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050606;color:#d8e0d7;font-family:'Share Tech Mono',monospace}canvas{display:block;image-rendering:pixelated}#hud{position:fixed;inset:0;pointer-events:none;text-shadow:0 2px 4px #000}#top{position:absolute;top:16px;left:18px;font-size:13px;letter-spacing:2px;color:#a9b8a6}#objective{position:absolute;top:42px;left:18px;font-size:12px;color:#d5d7c7}#status{position:absolute;right:18px;top:16px;text-align:right;font-size:12px;color:#c2c8ba}#cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:18px;color:#e1e6d6;opacity:.75}#hint{position:absolute;bottom:12%;width:100%;text-align:center;font-size:13px;color:#e6e8dc;letter-spacing:1px}#noise{position:fixed;inset:0;pointer-events:none;opacity:.07;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E")}#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#1b211d 0%,#050606 75%);z-index:5;text-align:center;padding:24px}#panel{max-width:580px}h1{font-size:clamp(36px,8vw,68px);letter-spacing:6px;margin:0;color:#d7ded1;text-shadow:4px 4px #5c1917} .sub{color:#8e9b8b;letter-spacing:3px;margin:12px 0 28px;font-size:12px}.story{line-height:1.7;color:#bac0b4;font-size:14px;max-width:470px;margin:0 auto 24px}button{font:inherit;color:#e5e8dc;background:#18221b;border:1px solid #788473;padding:13px 24px;letter-spacing:2px;cursor:pointer}button:active{background:#3b201e}#overlay small{display:block;margin-top:18px;color:#657164;line-height:1.7}#mobile{display:none;position:fixed;inset:auto 0 20px 0;z-index:3;pointer-events:none}.pad{display:flex;gap:8px;margin-left:14px;pointer-events:auto}.pad button,.actions button{padding:14px 16px;background:#111a16cc;border:1px solid #82908099;min-width:48px;touch-action:none}.actions{position:absolute;right:14px;bottom:0;display:flex;gap:8px;pointer-events:auto}.actions button{font-size:11px;min-width:60px}.mobile-look{position:fixed;inset:35% 0 28% 35%;z-index:2;touch-action:none} @media(pointer:coarse){#mobile{display:block}#hint{bottom:30%}}
+</style>
+</head>
+<body>
+<div id="overlay"><div id="panel"><h1>THE LAST SHIFT</h1><div class="sub">A PYROMANIA INTERACTIVE NIGHTMARE</div><p class="story">The power failed at 02:13. The emergency exit is locked, and something is moving through the service corridors. Find the three fuses. Keep your light on it only when you must.</p><button id="start">BEGIN SHIFT</button><small>WASD to move · Mouse to look · SHIFT to run · F to toggle flashlight<br>Find 3 fuses, then reach the red exit. Headphones recommended.</small></div></div>
+<div id="hud"><div id="top">PYROMANIA // FACILITY 09</div><div id="objective">OBJECTIVE: FIND FUSES — 0 / 3</div><div id="status">02:13 AM<br>BATTERY: 100%</div><div id="cross">+</div><div id="hint">THE BUILDING IS NOT EMPTY</div></div><div id="noise"></div>
+<div class="mobile-look" id="lookzone"></div>
+<div id="mobile"><div class="pad"><button data-key="w">▲</button><div style="display:flex;flex-direction:column;gap:8px"><button data-key="a">◀</button><button data-key="s">▼</button></div><button data-key="d">▶</button></div><div class="actions"><button id="run">RUN</button><button id="light">LIGHT</button></div></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x050807);scene.fog=new THREE.FogExp2(0x050807,.047);
+const camera=new THREE.PerspectiveCamera(72,innerWidth/innerHeight,.1,90);camera.position.set(0,1.65,7);
+const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.25));renderer.shadowMap.enabled=false;renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.appendChild(renderer.domElement);
+const ambient=new THREE.HemisphereLight(0x82917e,0x10130f,1.05);scene.add(ambient);
+const flashlight=new THREE.SpotLight(0xe0e8d2,45,18,Math.PI/5,.5,1.4);camera.add(flashlight);flashlight.position.set(0,0,0);flashlight.target.position.set(0,0,-1);camera.add(flashlight.target);scene.add(camera);
+const mat=(color,roughness=1)=>new THREE.MeshStandardMaterial({color,roughness,flatShading:true});
+const wallmat=mat(0x303932),floorMat=mat(0x252a25),metal=mat(0x50574f),red=mat(0x791d19),fuseMat=mat(0xc6b86a),black=mat(0x080b09),eyeMat=new THREE.MeshBasicMaterial({color:0xc72a1c});
+function box(x,y,z,sx,sy,sz,m){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),m);o.position.set(x,y,z);scene.add(o);return o}
+box(0,-.12,0,28,.2,32,floorMat);box(0,3.2,0,28,.25,32,wallmat);
+for(let x=-14;x<=14;x+=2){box(x,1.55,-16,.18,3.2,.18,metal);box(x,1.55,16,.18,3.2,.18,metal)}
+box(-14,1.5,0,.25,3,32,wallmat);box(14,1.5,0,.25,3,32,wallmat);
+// Corridor partitions, leaving gaps to navigate
+const walls=[[-8,1.5,-10,12,3,.35], [3,1.5,-7,.35,3,8],[-4,1.5,-3,10,3,.35],[8,1.5,0,.35,3,9],[-7,1.5,3,12,3,.35],[0,1.5,8,.35,3,8],[-9,1.5,12,9,3,.35]];
+walls.forEach(a=>box(...a,wallmat));
+// door frame and exit
+box(0,1.25,-15.75,2.4,2.5,.2,red);box(0,1.25,-15.6,1.5,2.15,.15,black);
+const exitLamp=new THREE.PointLight(0xb52b20,3,7);exitLamp.position.set(0,2.5,-14.8);scene.add(exitLamp);
+// ceiling lights, some flicker
+const lamps=[];for(const p of [[-5,2.95,5],[5,2.95,-5],[-4,2.95,-12],[10,2.95,9]]){const l=new THREE.PointLight(0x9ba98c,2.5,7);l.position.set(...p);scene.add(l);lamps.push(l);box(p[0],3.04,p[2],.8,.06,.3,mat(0x69705e))}
+const fusePositions=[[-11,0,-7],[5,0,4],[-4,0,13]],fuses=[];
+for(const [x,y,z] of fusePositions){const g=new THREE.Group();const core=new THREE.Mesh(new THREE.BoxGeometry(.28,.5,.22),fuseMat);g.add(core);const cap=new THREE.Mesh(new THREE.BoxGeometry(.34,.08,.28),metal);cap.position.y=.24;g.add(cap);g.position.set(x,.48,z);scene.add(g);const l=new THREE.PointLight(0xd8b85c,1.4,3);l.position.set(x,.8,z);scene.add(l);fuses.push({g,x,z,got:false})}
+// Monster silhouette
+const monster=new THREE.Group();const body=new THREE.Mesh(new THREE.BoxGeometry(.75,1.45,.42),black);body.position.y=.95;monster.add(body);
+const head=new THREE.Mesh(new THREE.IcosahedronGeometry(.38,0),mat(0x111713));head.position.y=1.9;monster.add(head);
+for(const x of [-.14,.14]){const e=new THREE.Mesh(new THREE.BoxGeometry(.09,.07,.04),eyeMat);e.position.set(x,1.95,-.34);monster.add(e)}
+for(const x of [-.48,.48]){const arm=new THREE.Mesh(new THREE.BoxGeometry(.18,1.05,.2),black);arm.position.set(x,.95,0);arm.rotation.z=x<0?-.12:.12;monster.add(arm)}
+monster.position.set(10,0,-10);scene.add(monster);
+let playing=false,locked=false,yaw=0,pitch=0,fuseCount=0,battery=100,lightOn=true,health=100,elapsed=0,scareCooldown=0,win=false;const keys={};let lastTouch=null;
+const overlay=document.getElementById('overlay'),objective=document.getElementById('objective'),status=document.getElementById('status'),hint=document.getElementById('hint');
+function begin(){playing=true;overlay.style.display='none';if(matchMedia('(pointer:fine)').matches)renderer.domElement.requestPointerLock?.();camera.position.set(0,1.65,7)}
+document.getElementById('start').onclick=begin;
+document.addEventListener('pointerlockchange',()=>locked=document.pointerLockElement===renderer.domElement);
+document.addEventListener('mousemove',e=>{if(locked&&playing){yaw-=e.movementX*.0022;pitch-=e.movementY*.0022;pitch=Math.max(-1.15,Math.min(1.15,pitch))}});
+document.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.key.toLowerCase()==='f')toggleLight();if(e.key==='Escape'&&playing&&!win){playing=false;overlay.style.display='flex';document.querySelector('#panel h1').textContent='PAUSED';document.querySelector('.story').textContent='The corridors are still waiting.';document.getElementById('start').textContent='CONTINUE';document.getElementById('start').onclick=()=>{playing=true;overlay.style.display='none';document.getElementById('start').onclick=begin}}});
+document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+function toggleLight(){lightOn=!lightOn;flashlight.visible=lightOn;hint.textContent=lightOn?'KEEP MOVING.':'DARKNESS IS NOT SAFETY.'}
+document.getElementById('light').onclick=toggleLight;document.getElementById('run').onpointerdown=()=>keys.shift=true;document.getElementById('run').onpointerup=()=>keys.shift=false;
+document.querySelectorAll('[data-key]').forEach(b=>{const k=b.dataset.key;b.onpointerdown=e=>{e.preventDefault();keys[k]=true};b.onpointerup=b.onpointerleave=()=>keys[k]=false});
+const lookzone=document.getElementById('lookzone');lookzone.addEventListener('pointerdown',e=>{lastTouch={x:e.clientX,y:e.clientY};lookzone.setPointerCapture(e.pointerId)});lookzone.addEventListener('pointermove',e=>{if(lastTouch){yaw-=(e.clientX-lastTouch.x)*.006;pitch-=(e.clientY-lastTouch.y)*.006;pitch=Math.max(-1.1,Math.min(1.1,pitch));lastTouch={x:e.clientX,y:e.clientY}}});lookzone.addEventListener('pointerup',()=>lastTouch=null);
+function collides(x,z){if(Math.abs(x)>13.2||Math.abs(z)>15.2)return true;for(const a of walls){const [wx,wy,wz,sx,sy,sz]=a;if(Math.abs(x-wx)<sx/2+.38&&Math.abs(z-wz)<sz/2+.38)return true}return false}
+function endScreen(title,desc){playing=false;win=title==='SHIFT COMPLETE';if(document.pointerLockElement)document.exitPointerLock();overlay.style.display='flex';document.querySelector('#panel h1').textContent=title;document.querySelector('.sub').textContent='PYROMANIA // FACILITY 09';document.querySelector('.story').textContent=desc;document.getElementById('start').textContent='PLAY AGAIN';document.getElementById('start').onclick=()=>location.reload()}
+const clock=new THREE.Clock();
+function tick(){requestAnimationFrame(tick);const dt=Math.min(clock.getDelta(),.05);elapsed+=dt;
+if(playing){camera.rotation.order='YXZ';camera.rotation.set(pitch,yaw,0);
+let speed=(keys.shift?4.3:2.5)*dt;let forward=(keys.w||keys.arrowup?1:0)-(keys.s||keys.arrowdown?1:0),side=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0);const dx=(Math.sin(yaw)*forward+Math.cos(yaw)*side)*speed,dz=(-Math.cos(yaw)*forward+Math.sin(yaw)*side)*speed;const nx=camera.position.x+dx,nz=camera.position.z+dz;if(!collides(nx,camera.position.z))camera.position.x=nx;if(!collides(camera.position.x,nz))camera.position.z=nz;
+if(lightOn){battery-=dt*.45;if(battery<=0){battery=0;lightOn=false;flashlight.visible=false;hint.textContent='BATTERY DEAD. RUN.'}}else battery-=dt*.08;
+fuses.forEach(f=>{if(!f.got){f.g.rotation.y+=dt;f.g.position.y=.48+Math.sin(elapsed*2+f.x)*.08;if(camera.position.distanceTo(new THREE.Vector3(f.x,.5,f.z))<1.25){f.got=true;scene.remove(f.g);fuseCount++;objective.textContent=`OBJECTIVE: FIND FUSES — ${fuseCount} / 3`;hint.textContent='FUSE RECOVERED. SOMETHING HEARD THAT.'}}});
+const target=new THREE.Vector3(camera.position.x,0,camera.position.z);const toPlayer=target.clone().sub(monster.position);const dist=toPlayer.length();if(dist>1.9){const chase=dist<9?1.55:dist<15?.85:.42;toPlayer.normalize();monster.position.addScaledVector(toPlayer,dt*chase)}monster.lookAt(camera.position.x,0,camera.position.z);monster.position.y=Math.sin(elapsed*5)*.035;
+if(dist<1.4){health-=dt*38;hint.textContent='IT FOUND YOU. RUN.';if(health<=0){endScreen('YOU WERE FOUND','The morning crew found the lights on. Nobody found you.');}}
+if(fuseCount===3&&camera.position.z<-13&&Math.abs(camera.position.x)<1.8){endScreen('SHIFT COMPLETE','You made it out. But something followed you into the rain.');}
+scareCooldown-=dt;if(dist<5&&scareCooldown<=0){hint.textContent='DON’T LOOK AWAY.';scareCooldown=3}
+status.innerHTML=`02:${String(Math.max(0,13-Math.floor(elapsed/60))).padStart(2,'0')} AM<br>BATTERY: ${Math.floor(battery)}%<br>CONDITION: ${Math.max(0,Math.floor(health))}%`;
+lamps.forEach((l,i)=>{l.intensity=1.4+Math.random()*(i===2?.9:.3)});flashlight.intensity=lightOn?45:0;
+}
+renderer.render(scene,camera)}
+tick();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body></html>
